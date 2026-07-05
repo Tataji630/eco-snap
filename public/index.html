@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Eco-Snap – Snap it. Report it. Clean the city.</title>
+  <meta name="description" content="Eco-Snap connects citizens to municipal workers for fast garbage cleanup."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-c">
+    <div class="splash-leaf">🌿</div>
+    <div class="splash-title">Eco-Snap</div>
+    <div class="splash-sub">Snap it. Report it. Clean the city.</div>
+    <div class="splash-bar"><div class="splash-fill"></div></div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="toasts"></div>
+
+<!-- NOTIFICATION DRAWER -->
+<div id="nd-overlay" onclick="closeNotif()"></div>
+<div id="nd-drawer">
+  <div class="nd-head">
+    <span>🔔 Notifications</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="nd-all-read" onclick="markAllRead()">Mark all read</button>
+      <button class="nd-x" onclick="closeNotif()">✕</button>
+    </div>
+  </div>
+  <div id="nd-list"></div>
+</div>
+
+<!-- NAVBAR -->
+<nav id="navbar" class="hidden">
+  <div class="nb-l">
+    <div class="nb-brand" onclick="goHome()">
+      <span class="nb-leaf">🌿</span>
+      <span class="nb-name">Eco-Snap</span>
+    </div>
+    <div id="nb-links"></div>
+  </div>
+  <div class="nb-r">
+    <div id="nb-guest-links" style="display:flex;gap:8px;margin-right:16px;">
+      <button class="btn-back" onclick="go('citizen-auth')" style="background:var(--g5);border-color:var(--e5);color:var(--e7);">👤 Citizen Login</button>
+      <button class="btn-back" onclick="go('worker-auth')">🦺 Worker Login</button>
+    </div>
+    <button class="nb-bell" id="nb-bell" onclick="openNotif()">
+      🔔<span id="nb-badge" class="nb-badge hidden">0</span>
+    </button>
+    <div id="nb-user-info"></div>
+    <button class="nb-logout-btn" onclick="logout()">⬅ Logout</button>
+  </div>
+</nav>
+
+<!-- MAIN APP ROOT -->
+<main id="root">
+
+<!-- ================= LANDING PAGE ================= -->
+<div id="v-landing" class="view active">
+  <div class="landing-page">
+    <div class="land-top">
+      <div class="land-logo">🌿 <span>Eco-Snap</span></div>
+      <div class="land-tag">"Snap it. Report it. Clean the city."</div>
+    </div>
+
+    <div class="land-hero">
+      <h1 class="land-h1">Together We Can<br><span class="land-hl">Clean Our City</span></h1>
+      <p class="land-p">Report garbage in your neighborhood instantly. Municipal workers get notified, clean the area, and you track every step.</p>
+    </div>
+
+    <div class="role-choose">
+      <div class="role-btn citizen-role" onclick="go('citizen-auth')">
+        <div class="rb-icon">👤</div>
+        <div class="rb-body">
+          <div class="rb-title">Citizen Login / Register</div>
+          <div class="rb-desc">Click here to log in and report garbage near you</div>
+        </div>
+        <div class="rb-arrow">→</div>
+      </div>
+      <div class="role-btn worker-role" onclick="go('worker-auth')">
+        <div class="rb-icon">🦺</div>
+        <div class="rb-body">
+          <div class="rb-title">Worker Login</div>
+          <div class="rb-desc">Click here to log in and view assigned tasks</div>
+        </div>
+        <div class="rb-arrow">→</div>
+      </div>
+    </div>
+
+    <div class="flow-strip">
+      <div class="fs-step"><div class="fs-ico">📸</div><div class="fs-label">Citizen Snaps Photo</div></div><div class="fs-arrow">→</div>
+      <div class="fs-step"><div class="fs-ico">📢</div><div class="fs-label">Workers Notified</div></div><div class="fs-arrow">→</div>
+      <div class="fs-step"><div class="fs-ico">⚡</div><div class="fs-label">Worker Accepts</div></div><div class="fs-arrow">→</div>
+      <div class="fs-step"><div class="fs-ico">🧹</div><div class="fs-label">Area Cleaned</div></div><div class="fs-arrow">→</div>
+      <div class="fs-step"><div class="fs-ico">✅</div><div class="fs-label">Task Complete!</div></div>
+    </div>
+
+    <div class="admin-hint" onclick="go('admin-auth')">🛡️ Admin Portal</div>
+  </div>
+</div>
+
+<!-- ================= CITIZEN AUTH ================= -->
+<div id="v-citizen-auth" class="view">
+  <div class="auth-page">
+    <div class="auth-side">
+      <div class="as-icon">👤</div>
+      <h2>Citizen Portal</h2>
+      <p>Report garbage in your neighborhood and track the cleanup progress in real time.</p>
+      <ul class="as-list">
+        <li>📸 Upload garbage photo</li>
+        <li>📍 Auto GPS location</li>
+        <li>⏳ Track complaint status</li>
+        <li>✅ See before &amp; after photos</li>
+      </ul>
+    </div>
+    <div class="auth-form-side">
+      <button class="back-btn" onclick="go('landing')">← Back</button>
+      <div class="auth-box">
+        <div class="auth-tabs">
+          <button class="atab active" id="ca-l" onclick="cTab('login')">Sign In</button>
+          <button class="atab" id="ca-r" onclick="cTab('register')">Register</button>
+        </div>
+
+        <form id="cf-login" onsubmit="doLogin(event,'citizen')" class="af">
+          <h2 class="af-h">Welcome back! 👋</h2>
+          <p class="af-s">Login to your citizen account</p>
+          <div class="fg"><label>Email</label>
+            <div class="fw"><span class="fi">✉</span><input type="email" id="cl-email" placeholder="you@example.com" required/></div>
+          </div>
+          <div class="fg"><label>Password</label>
+            <div class="fw"><span class="fi">🔒</span><input type="password" id="cl-pw" placeholder="••••••••" required/></div>
+          </div>
+          <button type="submit" class="btn-auth" id="cl-btn">Sign In</button>
+
+        </form>
+
+        <form id="cf-register" onsubmit="doRegister(event,'citizen')" class="af hidden">
+          <h2 class="af-h">Create Account 🌿</h2>
+          <p class="af-s">Join Eco-Snap as a citizen</p>
+          <div class="fg-2">
+            <div class="fg"><label>Full Name</label>
+              <div class="fw"><span class="fi">👤</span><input type="text" id="cr-name" placeholder="Your name" required/></div>
+            </div>
+            <div class="fg"><label>Phone</label>
+              <div class="fw"><span class="fi">📱</span><input type="tel" id="cr-phone" placeholder="9876543210"/></div>
+            </div>
+          </div>
+          <div class="fg"><label>Email</label>
+            <div class="fw"><span class="fi">✉</span><input type="email" id="cr-email" placeholder="you@example.com" required/></div>
+          </div>
+          <div class="fg"><label>Password</label>
+            <div class="fw"><span class="fi">🔒</span><input type="password" id="cr-pw" placeholder="Min. 6 characters" required minlength="6"/></div>
+          </div>
+          <button type="submit" class="btn-auth" id="cr-btn">Create Account</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= WORKER AUTH ================= -->
+<div id="v-worker-auth" class="view">
+  <div class="auth-page worker-auth-page">
+    <div class="auth-side worker-side">
+      <div class="as-icon">🦺</div>
+      <h2>Worker Portal</h2>
+      <p>View garbage complaints in your zone, accept tasks, clean the area and mark them as complete.</p>
+
+    </div>
+    <div class="auth-form-side">
+      <button class="back-btn" onclick="go('landing')">← Back</button>
+      <div class="auth-box">
+        <div class="auth-tabs">
+          <button class="atab active" id="wa-l" onclick="wAuthTab('login')">Sign In</button>
+          <button class="atab" id="wa-r" onclick="wAuthTab('register')">Register</button>
+        </div>
+        <form id="wf-login" onsubmit="doLogin(event,'worker')" class="af">
+          <h2 class="af-h">Worker Sign In 🦺</h2>
+          <p class="af-s">Access your task dashboard</p>
+          <div class="fg"><label>Worker Email</label>
+            <div class="fw"><span class="fi">✉</span><input type="email" id="wl-email" placeholder="worker@ecosnap.com" required/></div>
+          </div>
+          <div class="fg"><label>Password</label>
+            <div class="fw"><span class="fi">🔒</span><input type="password" id="wl-pw" placeholder="••••••••" required/></div>
+          </div>
+          <button type="submit" class="btn-auth btn-worker" id="wl-btn">🦺 Sign In as Worker</button>
+        </form>
+        <form id="wf-register" onsubmit="doRegister(event,'worker')" class="af hidden">
+          <h2 class="af-h">Worker Registration 🦺</h2>
+          <p class="af-s">Join Eco-Snap as a worker</p>
+          <div class="fg-2">
+            <div class="fg"><label>Full Name</label>
+              <div class="fw"><span class="fi">👤</span><input type="text" id="wr-name" placeholder="Your name" required/></div>
+            </div>
+            <div class="fg"><label>Phone</label>
+              <div class="fw"><span class="fi">📱</span><input type="tel" id="wr-phone" placeholder="9876543210"/></div>
+            </div>
+          </div>
+          <div class="fg"><label>Worker Email</label>
+            <div class="fw"><span class="fi">✉</span><input type="email" id="wr-email" placeholder="worker@ecosnap.com" required/></div>
+          </div>
+          <div class="fg"><label>Password</label>
+            <div class="fw"><span class="fi">🔒</span><input type="password" id="wr-pw" placeholder="Min. 6 characters" required minlength="6"/></div>
+          </div>
+          <button type="submit" class="btn-auth btn-worker" id="wr-btn">Create Worker Account</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ADMIN AUTH ================= -->
+<div id="v-admin-auth" class="view">
+  <div class="auth-page admin-auth-page">
+    <div class="auth-side admin-side">
+      <div class="as-icon">🛡️</div>
+      <h2>Admin Portal</h2>
+      <p>Monitor all city complaints, manage users and workers, view analytics and reports.</p>
+    </div>
+    <div class="auth-form-side">
+      <button class="back-btn" onclick="go('landing')">← Back</button>
+      <div class="auth-box">
+        <div class="wl-head"><div class="wl-ico">🛡️</div><h2>Admin Sign In</h2><p>City management portal</p></div>
+        <form id="af-login" onsubmit="doLogin(event,'admin')" class="af">
+          <div class="fg"><label>Admin Email</label>
+            <div class="fw"><span class="fi">✉</span><input type="email" id="al-email" placeholder="admin@ecosnap.com" required/></div>
+          </div>
+          <div class="fg"><label>Password</label>
+            <div class="fw"><span class="fi">🔒</span><input type="password" id="al-pw" placeholder="••••••••" required/></div>
+          </div>
+          <button type="submit" class="btn-auth btn-admin" id="al-btn">🛡️ Admin Login</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CITIZEN DASHBOARD ================= -->
+<div id="v-citizen-dash" class="view dv">
+  <div class="dw">
+    <div class="dh">
+      <div><h1 id="cg-title" class="dt">My Dashboard</h1><p class="ds">Your garbage reports and their cleanup status</p></div>
+      <button class="btn-new" onclick="go('report')">📸 New Report</button>
+    </div>
+    <div class="krow" id="c-krow">
+      <div class="kcard ktotal"><div class="ki">📋</div><div class="kv" id="ck-t">0</div><div class="kl">Total</div></div>
+      <div class="kcard kpend"><div class="ki">⏳</div><div class="kv" id="ck-p">0</div><div class="kl">Pending</div></div>
+      <div class="kcard kprog"><div class="ki">⚡</div><div class="kv" id="ck-a">0</div><div class="kl">In Progress</div></div>
+      <div class="kcard kdone"><div class="ki">✅</div><div class="kv" id="ck-c">0</div><div class="kl">Completed</div></div>
+    </div>
+    <div class="bar">
+      <h2 class="bh">My Reports</h2>
+      <div class="filters" id="cf-pills">
+        <button class="fp active" onclick="filterC('all',this)">All</button>
+        <button class="fp" onclick="filterC('pending',this)">⏳ Pending</button>
+        <button class="fp" onclick="filterC('accepted',this)">⚡ In Progress</button>
+        <button class="fp" onclick="filterC('completed',this)">✅ Completed</button>
+      </div>
+    </div>
+    <div class="cgrid" id="c-grid"></div>
+  </div>
+</div>
+
+<!-- ================= REPORT PAGE ================= -->
+<div id="v-report" class="view dv">
+  <div class="dw">
+    <div class="dh">
+      <div><h1 class="dt">📸 Report Garbage</h1><p class="ds">Upload a photo and share the location</p></div>
+      <button class="btn-back" onclick="go('citizen-dash')">← Back</button>
+    </div>
+    <div class="report-layout">
+      <form id="rf" onsubmit="submitReport(event)" class="report-form">
+        <div class="step-card">
+          <div class="step-hd"><span class="step-num">1</span> Upload Photo</div>
+          <div class="pzone" id="pzone" onclick="trigPhoto()">
+            <div id="pz-ph" class="pz-placeholder"><div class="pz-big">📷</div><p>Tap here to take or upload photo</p></div>
+            <img id="pz-preview" class="pz-preview hidden" alt="preview"/>
+            <button type="button" id="pz-retake" class="pz-retake hidden" onclick="event.stopPropagation();clearPhoto()">↺ Retake</button>
+          </div>
+          <input type="file" id="photo-file" accept="image/*" class="hidden" onchange="onPhoto(event)"/>
+          <div id="ai-prediction" class="hidden mt8" style="padding:12px;border-radius:10px;font-size:14px;border:1px solid var(--s2);"></div>
+          <div class="sample-ph">
+            <span>Or pick a sample:</span>
+            <button type="button" onclick="pickSample(0)">🗑️ Garbage</button>
+            <button type="button" onclick="pickSample(1)">🏗️ Debris</button>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-hd"><span class="step-num">2</span> Location</div>
+          <div id="loc-wrap">
+            <button type="button" class="loc-get-btn" id="loc-btn" onclick="getLocation()">📍 Get My Location</button>
+            <div id="loc-spin" class="loc-spin hidden"><div class="mini-spin"></div> Getting location…</div>
+            <div id="loc-ok" class="loc-ok hidden">✅ Location captured: <span id="loc-coords"></span></div>
+          </div>
+          <div id="r-map-small" class="r-map-sm"></div>
+          <div class="fg mt8"><label>Address / Landmark</label><input type="text" id="r-addr" placeholder="e.g. Near MG Road Bus Stop"/></div>
+        </div>
+        <div class="step-card">
+          <div class="step-hd"><span class="step-num">3</span> Details</div>
+          <div class="fg"><label>Category</label>
+            <select id="r-cat">
+              <option value="solid_waste">🗑️ Solid Waste / Garbage</option>
+              <option value="overflowing_bin">🪣 Overflowing Dustbin</option>
+              <option value="other">📋 Other</option>
+            </select>
+          </div>
+          <div class="fg"><label>Description *</label><textarea id="r-desc" rows="3" required></textarea></div>
+        </div>
+        <button type="submit" class="btn-submit" id="r-sub">📤 Submit Report</button>
+      </form>
+      <div class="report-map-col">
+        <div class="step-card"><div class="step-hd">🗺️ Location on Map</div><div id="r-map-big" class="r-map-big"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TRACKING PAGE ================= -->
+<div id="v-tracking" class="view dv">
+  <div class="dw">
+    <div class="dh"><div><h1 class="dt">📍 Complaint Tracking</h1></div><button class="btn-back" onclick="goHome()">← Back</button></div>
+    <div id="track-body"></div>
+  </div>
+</div>
+
+<!-- ================= WORKER DASHBOARD ================= -->
+<div id="v-worker-dash" class="view dv">
+  <div class="dw">
+    <div class="dh">
+      <div><h1 class="dt">Worker Dashboard 🦺</h1><p class="ds">Municipal Worker</p></div>
+      <button class="btn-back" onclick="loadWorkerDash()">↺ Refresh</button>
+    </div>
+    <div class="krow">
+      <div class="kcard kpend"><div class="ki">📥</div><div class="kv" id="wk-av">0</div><div class="kl">Available Tasks</div></div>
+      <div class="kcard kprog"><div class="ki">⚡</div><div class="kv" id="wk-my">0</div><div class="kl">My Active</div></div>
+      <div class="kcard kdone"><div class="ki">🏆</div><div class="kv" id="wk-dn">0</div><div class="kl">Completed Today</div></div>
+    </div>
+    <div class="map-section"><div class="ms-head"><h2>🗺️ Complaints Near You</h2></div><div id="w-map" class="big-map"></div></div>
+    <div class="wtabs">
+      <button class="wt active" id="wt-pend" onclick="wTab('pending')">📋 Available Tasks <span id="wt-count" class="wt-badge">0</span></button>
+      <button class="wt" id="wt-mine" onclick="wTab('mine')">⚡ My Active Tasks</button>
+      <button class="wt" id="wt-hist" onclick="wTab('history')">✅ Completed History</button>
+    </div>
+    <div class="cgrid" id="w-grid"></div>
+  </div>
+</div>
+
+<!-- ================= ADMIN DASHBOARD ================= -->
+<div id="v-admin-dash" class="view dv">
+  <div class="dw">
+    <div class="dh">
+      <div><h1 class="dt">🛡️ Admin Dashboard</h1></div>
+      <button class="btn-back" onclick="loadAdmin()">↺ Refresh</button>
+    </div>
+    <div class="krow">
+      <div class="kcard ktotal"><div class="ki">📋</div><div class="kv" id="ak-t">0</div><div class="kl">Total</div></div>
+      <div class="kcard kpend"><div class="ki">⏳</div><div class="kv" id="ak-p">0</div><div class="kl">Pending</div></div>
+      <div class="kcard kprog"><div class="ki">⚡</div><div class="kv" id="ak-a">0</div><div class="kl">In Progress</div></div>
+      <div class="kcard kdone"><div class="ki">✅</div><div class="kv" id="ak-c">0</div><div class="kl">Completed</div></div>
+      <div class="kcard" style="--kc:#9333ea"><div class="ki">👤</div><div class="kv" id="ak-ci">0</div><div class="kl">Citizens</div></div>
+      <div class="kcard" style="--kc:#ea580c"><div class="ki">🦺</div><div class="kv" id="ak-w">0</div><div class="kl">Workers</div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-box"><h3>Status Breakdown</h3><div class="cw"><canvas id="stat-chart"></canvas></div></div>
+      <div class="chart-box"><h3>🗺️ All Complaints Map</h3><div id="a-map" class="big-map" style="height:210px"></div></div>
+    </div>
+    <div class="admin-panel">
+      <div class="atabs"><button class="at active" id="at-c" onclick="adminTab('complaints')">📄 All Complaints</button><button class="at" id="at-u" onclick="adminTab('users')">👥 Manage Users</button></div>
+      <div id="admin-body"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- MODALS -->
+<div id="photo-viewer" class="pv-overlay hidden" onclick="closePV(event)">
+  <div class="pv-box"><button class="pv-close" onclick="closePV()">✕</button><img id="pv-img" src="" alt=""/></div>
+</div>
+
+<div id="complete-modal" class="modal-overlay hidden" onclick="closeCM(event)">
+  <div class="modal-box">
+    <div class="modal-head"><h3>✅ Complete Task</h3><button onclick="closeCM()">✕</button></div>
+    <p>Upload a photo of the cleaned area as proof.</p>
+    <div class="pzone small-zone" id="cm-zone" onclick="document.getElementById('cm-file').click()">
+      <div id="cm-ph" class="pz-placeholder"><div class="pz-big">📷</div><p>Upload After-Cleaning Photo</p></div>
+      <img id="cm-preview" class="pz-preview hidden" alt="after"/>
+    </div>
+    <input type="file" id="cm-file" accept="image/*" class="hidden" onchange="const f = event.target.files[0]; if(f){ const r=new FileReader(); r.onload=e=>{S.photos.after=e.target.result; document.getElementById('cm-preview').src=e.target.result; document.getElementById('cm-preview').classList.remove('hidden'); document.getElementById('cm-ph').classList.add('hidden');}; r.readAsDataURL(f);}"/>
+    <div class="sample-ph mt8"><span>Or sample:</span><button type="button" onclick="pickAfter(0)">✨ Clean 1</button></div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeCM()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmComplete()">✅ Mark as Completed</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.bundle.js"></script>
+<script>
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Backspace') {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+        return;
+      }
+      e.preventDefault();
+    }
+  });
+</script>
+</body>
+</html>
