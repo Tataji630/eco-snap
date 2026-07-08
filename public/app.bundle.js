@@ -357,16 +357,31 @@ function getLocation() {
       (pos) => {
         S.loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         showLocSuccess();
+        reverseGeocode(S.loc.lat, S.loc.lng);
       },
       (err) => {
         toast('Location access failed. Using default.', 'warn');
         S.loc = {lat: 17.385 + Math.random()*0.05, lng: 78.487 + Math.random()*0.05};
         showLocSuccess();
+        reverseGeocode(S.loc.lat, S.loc.lng);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   } else {
     toast('Geolocation not supported.', 'err');
+  }
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    if (data && data.display_name) {
+      const addrInput = document.getElementById('r-addr');
+      if (addrInput) addrInput.value = data.display_name;
+    }
+  } catch (err) {
+    console.error('Reverse geocoding failed', err);
   }
 }
 
