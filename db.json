@@ -35,6 +35,33 @@
       "role": "citizen",
       "phone": "6302253391",
       "createdAt": "2026-05-30T03:59:43.325Z"
+    },
+    {
+      "id": "b7887196-c054-4406-ab14-b0f812ebbcd4",
+      "name": "gowtham",
+      "email": "2303031260008@paruluniversity.ac.in",
+      "password": "$2a$10$wWo4WLjD0GRRL1/jpBk2.uq7WK65CkVspyfYEquPkUD4ZUE3sqUYS",
+      "role": "citizen",
+      "phone": "6302253391",
+      "createdAt": "2026-07-08T04:28:26.803Z"
+    },
+    {
+      "id": "cc0d6cd4-e476-4541-8f22-524f476aee16",
+      "name": "teja",
+      "email": "2303031460198@paruluniversity.ac.in",
+      "password": "$2a$10$eZhIF.m5gH0CrJrNEsqhoOP2rI6PGFIpaj.cZ7qdnG9oO47jK0cgu",
+      "role": "worker",
+      "phone": "6300104573",
+      "createdAt": "2026-07-08T04:29:37.411Z"
+    },
+    {
+      "id": "cfa05d2f-2a09-438a-bb4a-788f236ae145",
+      "name": "tataji",
+      "email": "2303031260123@paruluniversity.ac.in",
+      "password": "$2a$10$Pr8W73vbgKhPBb41MC1dvOfyGMmqh2qEF5IwXGJwiDTWBGsX.cpbW",
+      "role": "worker",
+      "phone": "",
+      "createdAt": "2026-07-08T10:24:54.764Z"
     }
   ],
   "complaints": [
