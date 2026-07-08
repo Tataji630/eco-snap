@@ -265,7 +265,7 @@ async function adminTab(t) {
 
 // ─── REPORTING ───
 function initReport() {
-  S.photos.before = null; S.loc = {lat:null, lng:null};
+  S.photos.before = null; S.loc = {lat:null, lng:null}; S.isGarbageValid = false;
   document.getElementById('pz-preview').classList.add('hidden');
   document.getElementById('pz-retake').classList.add('hidden');
   document.getElementById('pz-ph').classList.remove('hidden');
@@ -306,25 +306,40 @@ const SAMPS = [
 function pickSample(i) { S.photos.before = SAMPS[i]; document.getElementById('pz-preview').src = SAMPS[i]; document.getElementById('pz-preview').classList.remove('hidden'); document.getElementById('pz-ph').classList.add('hidden'); document.getElementById('pzone').classList.add('filled'); document.getElementById('pz-retake').classList.remove('hidden'); predictWaste(); }
 function pickAfter(i) { S.photos.after = SAMPS[4]; document.getElementById('cm-preview').src = SAMPS[4]; document.getElementById('cm-preview').classList.remove('hidden'); document.getElementById('cm-ph').classList.add('hidden'); }
 
-function predictWaste() {
+async function predictWaste() {
   const pBox = document.getElementById('ai-prediction');
+  const submitBtn = document.getElementById('r-sub');
+  S.isGarbageValid = false;
   if(!pBox) return;
   pBox.classList.remove('hidden');
   pBox.innerHTML = '<div class="mini-spin" style="border-top-color:var(--s8);"></div> <span style="color:var(--s7)">Analyzing waste type...</span>';
   pBox.style.backgroundColor = 'var(--s5)'; pBox.style.borderColor = 'var(--s2)';
+  if (submitBtn) submitBtn.disabled = true;
   
-  setTimeout(() => {
-    const isRecyclable = Math.random() > 0.4; // 60% chance recyclable for demo
-    if(isRecyclable) {
-      pBox.innerHTML = '♻️ <strong>AI Prediction:</strong> Recyclable Waste';
-      pBox.style.backgroundColor = 'var(--g5)'; pBox.style.borderColor = 'var(--g4)';
-      document.getElementById('r-cat').value = 'household_waste';
+  try {
+    const res = await api('POST', '/analyze-image', { imageBase64: S.photos.before });
+    if (!res.isGarbage) {
+      S.isGarbageValid = false;
+      pBox.innerHTML = '❌ <strong>Error:</strong> ' + (res.reason || 'Invalid image. Please upload a real garbage/waste photo only.');
+      pBox.style.backgroundColor = '#fef2f2'; pBox.style.borderColor = '#ef4444';
+      if (submitBtn) submitBtn.disabled = true;
     } else {
-      pBox.innerHTML = '🗑️ <strong>AI Prediction:</strong> Non-Recyclable / Mixed Waste';
-      pBox.style.backgroundColor = '#fef2f2'; pBox.style.borderColor = '#fca5a5';
-      document.getElementById('r-cat').value = 'solid_waste';
+      S.isGarbageValid = true;
+      const cat = res.category === 'Recyclable' ? 'Recyclable Waste' : 'Non-Recyclable / Mixed Waste';
+      const icon = res.category === 'Recyclable' ? '♻️' : '🗑️';
+      pBox.innerHTML = `${icon} <strong>AI Prediction:</strong> ${cat} (${res.confidenceScore || 100}% sure)<br/><small>${res.reason || ''}</small>`;
+      pBox.style.backgroundColor = res.category === 'Recyclable' ? 'var(--g5)' : '#fffbeb'; 
+      pBox.style.borderColor = res.category === 'Recyclable' ? 'var(--g4)' : '#fcd34d';
+      
+      document.getElementById('r-cat').value = res.category === 'Recyclable' ? 'household_waste' : 'solid_waste';
+      if (submitBtn) submitBtn.disabled = false;
     }
-  }, 1200);
+  } catch (err) {
+    S.isGarbageValid = false;
+    pBox.innerHTML = '⚠️ <strong>Analysis Failed:</strong> ' + (err.message || 'Unknown error');
+    pBox.style.backgroundColor = '#fef2f2'; pBox.style.borderColor = '#ef4444';
+    if (submitBtn) submitBtn.disabled = true;
+  }
 }
 
 function showLocSuccess() {
@@ -357,6 +372,10 @@ function getLocation() {
 
 async function submitReport(e) {
   e.preventDefault();
+  if (!S.isGarbageValid) {
+    toast('Cannot submit. Please upload a valid garbage photo and wait for AI validation.', 'err');
+    return;
+  }
   try {
     await api('POST', '/complaints', {
       description: document.getElementById('r-desc').value,

@@ -1,3 +1,6 @@
+require('dotenv').config();
+const { GoogleGenAI } = require('@google/genai');
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -6,6 +9,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -88,10 +92,24 @@ app.get('/api/auth/me', auth, (req, res) => {
 // ─── COMPLAINTS ROUTES ───
 app.post('/api/complaints', auth, (req, res) => {
   if (req.user.role !== 'citizen') return res.status(403).json({ error: 'Only citizens can create complaints.' });
+  
+  const { photoBefore } = req.body;
+  let imageHash = null;
   const db = readDB();
+  
+  if (photoBefore) {
+    const matches = photoBefore.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (matches) {
+       imageHash = crypto.createHash('sha256').update(matches[2]).digest('hex');
+       if (db.complaints.find(c => c.imageHash === imageHash)) {
+         return res.status(400).json({ error: 'This image has already been uploaded.' });
+       }
+    }
+  }
+
   const c = {
     id: uuidv4(), citizenId: req.user.id, ...req.body, status: 'pending',
-    workerId: null, photoAfter: null, createdAt: new Date().toISOString(), acceptedAt: null, completedAt: null
+    workerId: null, photoAfter: null, imageHash, createdAt: new Date().toISOString(), acceptedAt: null, completedAt: null
   };
   db.complaints.push(c);
   // Notify workers
@@ -173,6 +191,78 @@ app.get('/api/admin/stats', auth, (req, res) => {
 app.get('/api/admin/users', auth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only.' });
   res.json(readDB().users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, createdAt: u.createdAt })));
+});
+
+// ─── IMAGE ANALYSIS ───
+app.post('/api/analyze-image', auth, async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: 'No image provided.' });
+    
+    const matches = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid image format.' });
+    }
+    const mimeType = matches[1];
+    const data = matches[2];
+
+    const imageHash = crypto.createHash('sha256').update(data).digest('hex');
+    const db = readDB();
+    if (db.complaints.find(c => c.imageHash === imageHash)) {
+      return res.json({
+        isGarbage: false,
+        category: null,
+        reason: 'This image has already been uploaded. Please upload a different garbage image.',
+        confidenceScore: 100
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
+      // Without an API key, we cannot reliably detect garbage, so we strictly reject to be safe.
+      return res.json({
+        isGarbage: false, category: null,
+        reason: 'Invalid image. Please upload a real garbage/waste photo only.', confidenceScore: 100
+      });
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const prompt = `You are a strict garbage validation AI. Analyze this image. 
+1. Validate whether the uploaded image is a REAL-WORLD photograph of actual physical garbage/waste.
+2. STRICTLY REJECT the image (set isGarbage: false) if it is ANY of the following:
+   - An AI-generated image, synthetic media, digital art, or altered photo
+   - A human face, person, or body part
+   - A document, PDF screenshot, UI screenshot, text image, or mobile screenshot
+   - An illustration, drawing, cartoon, 3D render, clip-art, vector graphic, or logo
+   - A clean room, landscape, or normal everyday object that is NOT discarded waste
+3. ONLY if it is a real-world, authentic photograph of physical garbage/waste, classify it into 'Recyclable' or 'Non-Recyclable'.
+Reply STRICTLY with a valid JSON object matching this schema, without markdown blocks or any other text:
+{
+  "isGarbage": true/false,
+  "category": "Recyclable" | "Non-Recyclable" | null,
+  "reason": "brief explanation",
+  "confidenceScore": 0-100
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        { role: 'user', parts: [
+          { text: prompt },
+          { inlineData: { data, mimeType } }
+        ]}
+      ]
+    });
+
+    let resultText = response.text().trim();
+    if (resultText.startsWith('```json')) {
+      resultText = resultText.replace(/^```json/, '').replace(/```$/, '');
+    }
+    const result = JSON.parse(resultText);
+    res.json(result);
+  } catch (error) {
+    console.error('Error analyzing image:', error);
+    res.status(500).json({ error: 'Failed to analyze image. Ensure your Gemini API Key is correct.' });
+  }
 });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
